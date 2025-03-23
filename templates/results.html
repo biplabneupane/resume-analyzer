@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Details</title>
+</head>
+<body>
+    <h1>Extracted Resume Details</h1>
+    
+    <h2>Raw Text:</h2>
+    <pre>{{ resume_text }}</pre>
+
+    <h2>Extracted Information:</h2>
+    <ul>
+        <li><strong>Name:</strong> {{ extracted_info["Name"] }}</li>
+        <li><strong>Email:</strong> {{ extracted_info["Email"] }}</li>
+        <li><strong>Phone:</strong> {{ extracted_info["Phone"] }}</li>
+        <li><strong>Skills:</strong> {{ extracted_info["Skills"] }}</li>
+    </ul>
+
+    <a href="/">Upload another resume</a>
+</body>
+</html>
