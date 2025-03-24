@@ -3,22 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resume Details</title>
+    <title>Resume Results</title>
 </head>
 <body>
-    <h1>Extracted Resume Details</h1>
-    
-    <h2>Raw Text:</h2>
+    <h2>Resume Analysis Results</h2>
+
+    <h3>Extracted Text:</h3>
     <pre>{{ resume_text }}</pre>
 
-    <h2>Extracted Information:</h2>
-    <ul>
-        <li><strong>Name:</strong> {{ extracted_info["Name"] }}</li>
-        <li><strong>Email:</strong> {{ extracted_info["Email"] }}</li>
-        <li><strong>Phone:</strong> {{ extracted_info["Phone"] }}</li>
-        <li><strong>Skills:</strong> {{ extracted_info["Skills"] }}</li>
-    </ul>
+    <h3>Extracted Information:</h3>
+    <p><strong>Name:</strong> {{ extracted_info.name }}</p>
+    <p><strong>Email(s):</strong> {{ extracted_info.emails }}</p>
+    <p><strong>Phone(s):</strong> {{ extracted_info.phones }}</p>
+    <p><strong>Education:</strong> {{ extracted_info.education }}</p>
+    <p><strong>Skills:</strong> {{ extracted_info.skills }}</p>
+    <p><strong>Experience:</strong> {{ extracted_info.experience }}</p>
 
-    <a href="/">Upload another resume</a>
+    <a href="{{ url_for('index') }}">Upload Another</a>
 </body>
 </html>
