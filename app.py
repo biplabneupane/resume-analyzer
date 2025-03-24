@@ -28,7 +28,7 @@ def upload_resume():
     resume_text = extract_resume_text(file_path)  # Get raw text
     extracted_info = extract_resume_details(resume_text)  # Extract details
 
-    return render_template("result.html", resume_text=resume_text, extracted_info=extracted_info)
+    return render_template("results.html", resume_text=resume_text, extracted_info=extracted_info)
 
 if __name__ == "__main__":
     app.run(debug=True)
