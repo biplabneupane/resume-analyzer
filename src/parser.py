@@ -24,7 +24,7 @@ def extract_resume_text(file_path):
         raise ValueError("Unsupported file format. Only PDF and DOCX are supported.")
 
 # Test with a sample resume
-if __name__ == "__main__":
-    sample_resume = "sample_resume.pdf"  # Change to your file path
-    text = extract_resume_text(sample_resume)
-    print(text[:500])  # Print first 500 characters to verify extraction
+# if __name__ == "__main__":
+#     sample_resume = "sample_resume.pdf"  # Change to your file path
+#     text = extract_resume_text(sample_resume)
+#     print(text[:500])  # Print first 500 characters to verify extraction
