@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for
 import os
-from src.extractor import extract_resume_data  # ✅ Correct function name
+from src.extractor import extract_text_from_pdf, extract_resume_info
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
@@ -24,10 +24,8 @@ def upload_resume():
         file_path = os.path.join(UPLOAD_FOLDER, file.filename)
         file.save(file_path)
 
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-            resume_text = f.read()
-
-        extracted_info = extract_resume_data(resume_text)  # ✅ Use extract_resume_data
+        resume_text = extract_text_from_pdf(file_path)  
+        extracted_info = extract_resume_info(resume_text)  
 
         return render_template("results.html", resume_text=resume_text, extracted_info=extracted_info)
 
