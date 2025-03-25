@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for
 import os
-from src.extractor import extract_resume_data
+from src.extractor import extract_resume_data  # ✅ Correct function name
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
@@ -13,21 +13,23 @@ def index():
 @app.route("/upload", methods=["POST"])
 def upload_resume():
     if "resume" not in request.files:
-        return redirect(url_for("index"))
+        return redirect(request.url)
 
     file = request.files["resume"]
+    
     if file.filename == "":
-        return redirect(url_for("index"))
+        return redirect(request.url)
 
-    filepath = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(filepath)
+    if file:
+        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+        file.save(file_path)
 
-    with open(filepath, "r", encoding="utf-8") as f:
-        resume_text = f.read()
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+            resume_text = f.read()
 
-    extracted_info = extract_resume_data(resume_text)
+        extracted_info = extract_resume_data(resume_text)  # ✅ Use extract_resume_data
 
-    return render_template("results.html", resume_text=resume_text, extracted_info=extracted_info)
+        return render_template("results.html", resume_text=resume_text, extracted_info=extracted_info)
 
 if __name__ == "__main__":
     app.run(debug=True)
