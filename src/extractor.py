@@ -1,78 +1,62 @@
 import re
 import spacy
+from pdfminer.high_level import extract_text
 
-# Load SpaCy NLP model (make sure to install it using `python -m spacy download en_core_web_sm`)
+# Load the NLP model
 nlp = spacy.load("en_core_web_sm")
 
-# Predefined list of skills for extraction
-SKILLS_LIST = {"Python", "JavaScript", "Machine Learning", "AI", "Data Science", "Docker", "SQL", "AWS", "Flask"}
+def extract_text_from_pdf(pdf_path):
+    """Extracts text from a PDF file."""
+    return extract_text(pdf_path)
 
-def extract_contact_info(text):
-    """Extract emails and phone numbers from text."""
+def extract_email(text):
+    """Extract email from text using regex."""
     email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
-    phone_pattern = r"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}"
-    
     emails = re.findall(email_pattern, text)
+    return emails[0] if emails else None
+
+def extract_phone(text):
+    """Extract phone number using regex."""
+    phone_pattern = r"\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}"
     phones = re.findall(phone_pattern, text)
-    
-    return emails, phones
+    return phones[0] if phones else None
 
 def extract_name(text):
-    """Extract name using Named Entity Recognition (NER)."""
+    """Extracts name using NLP (assumes name appears at the beginning)."""
     doc = nlp(text)
     for ent in doc.ents:
         if ent.label_ == "PERSON":
             return ent.text
     return None
 
-def extract_education(text):
-    """Extract degree and university names from text."""
-    education_keywords = ["Bachelor", "Master", "PhD", "BSc", "MSc", "BE", "ME"]
-    sentences = text.split("\n")
-    
-    education_info = []
-    for sentence in sentences:
-        if any(keyword in sentence for keyword in education_keywords):
-            education_info.append(sentence.strip())
-    
-    return education_info
-
 def extract_skills(text):
-    """Extract skills from text by checking predefined list."""
-    found_skills = set()
-    words = set(text.split())
-    
-    for skill in SKILLS_LIST:
-        if skill in words:
-            found_skills.add(skill)
-    
-    return list(found_skills)
+    """Extracts skills from text (simple keyword-based matching)."""
+    skills = ["Python", "Java", "JavaScript", "C++", "Machine Learning", "AI", "NLP", "Flask", "Django", "SQL", "AWS"]
+    found_skills = [skill for skill in skills if skill.lower() in text.lower()]
+    return ", ".join(found_skills) if found_skills else "Not Found"
+
+def extract_education(text):
+    """Extract education details using NLP."""
+    education_keywords = ["Bachelor", "Master", "PhD", "B.Sc", "M.Sc", "B.Tech", "M.Tech", "Engineering"]
+    lines = text.split("\n")
+    for line in lines:
+        if any(keyword in line for keyword in education_keywords):
+            return line.strip()
+    return "Not Found"
 
 def extract_experience(text):
-    """Extract experience-related details such as job titles and company names."""
-    job_titles = ["Software Engineer", "Data Scientist", "Research Assistant", "Project Manager"]
-    sentences = text.split("\n")
-    
-    experience_info = []
-    for sentence in sentences:
-        if any(title in sentence for title in job_titles):
-            experience_info.append(sentence.strip())
-    
-    return experience_info
+    """Extract experience details using regex."""
+    exp_pattern = r"(\d+)\s+years?\s+of\s+experience"
+    experience = re.findall(exp_pattern, text, re.IGNORECASE)
+    return experience[0] + " years" if experience else "Not Found"
 
-def extract_resume_data(text):
-    """Main function to extract all details from a resume."""
-    name = extract_name(text)
-    emails, phones = extract_contact_info(text)
-    education = extract_education(text)
-    skills = extract_skills(text)
-    experience = extract_experience(text)
-    
+def extract_resume_info(text):
+    """Extracts all key information from resume text."""
     return {
-        "name": name,
-        "emails": emails,
-        "phones": phones,
-        "education": education,
-        "skills": skills,
-        "experience": experience
+        "name": extract_name(text),
+        "email": extract_email(text),
+        "phone": extract_phone(text),
+        "education": extract_education(text),
+        "skills": extract_skills(text),
+        "experience": extract_experience(text)
     }
