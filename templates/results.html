@@ -3,22 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resume Results</title>
+    <title>Resume Analysis</title>
 </head>
 <body>
-    <h2>Resume Analysis Results</h2>
+    <h1>Extracted Resume Information</h1>
 
-    <h3>Extracted Text:</h3>
+    <h2>Full Text:</h2>
     <pre>{{ resume_text }}</pre>
 
-    <h3>Extracted Information:</h3>
-    <p><strong>Name:</strong> {{ extracted_info.name }}</p>
-    <p><strong>Email(s):</strong> {{ extracted_info.emails }}</p>
-    <p><strong>Phone(s):</strong> {{ extracted_info.phones }}</p>
-    <p><strong>Education:</strong> {{ extracted_info.education }}</p>
-    <p><strong>Skills:</strong> {{ extracted_info.skills }}</p>
-    <p><strong>Experience:</strong> {{ extracted_info.experience }}</p>
+    <h2>Extracted Key Information:</h2>
+    <ul>
+        <li><strong>Name:</strong> {{ extracted_info.name }}</li>
+        <li><strong>Email:</strong> {{ extracted_info.email }}</li>
+        <li><strong>Phone:</strong> {{ extracted_info.phone }}</li>
+        <li><strong>Education:</strong> {{ extracted_info.education }}</li>
+        <li><strong>Skills:</strong> {{ extracted_info.skills }}</li>
+        <li><strong>Experience:</strong> {{ extracted_info.experience }}</li>
+    </ul>
 
-    <a href="{{ url_for('index') }}">Upload Another</a>
+    <a href="/">Upload Another Resume</a>
 </body>
 </html>
