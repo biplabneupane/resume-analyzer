@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for
 import os
 from src.extractor import extract_text_from_pdf, extract_resume_info
 
+# Initialize Flask app
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -24,6 +25,7 @@ def upload_resume():
         file_path = os.path.join(UPLOAD_FOLDER, file.filename)
         file.save(file_path)
 
+        # Extract text from the uploaded PDF
         resume_text = extract_text_from_pdf(file_path)  
         extracted_info = extract_resume_info(resume_text)  
 
