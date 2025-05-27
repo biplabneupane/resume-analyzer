@@ -11,6 +11,9 @@ uploads/
 # C extensions
 *.so
 
+#resume
+resumes.db/
+
 # Distribution / packaging
 .Python
 build/
