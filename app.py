@@ -62,5 +62,19 @@ def show_resumes():
     all_resumes = fetch_all_resumes()
     return render_template("resumes.html", resumes=all_resumes)
 
+
+@app.route('/match', methods=['GET', 'POST'])
+def match_resumes():
+    if request.method == 'POST':
+        job_description = request.form['job_description']
+        print("Received Job Description:", job_description)  # Debug
+
+        # In step 2: compute similarity
+        # For now, just return confirmation page
+        return render_template('match_results.html', job_description=job_description)
+
+    return render_template('match_form.html')
+
+
 if __name__ == "__main__":
     app.run(debug=True)

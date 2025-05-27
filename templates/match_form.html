@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Match Job Description</title>
+</head>
+<body>
+    <h1>Enter Job Description</h1>
+    <form method="POST" action="{{ url_for('match_resumes') }}">
+        <textarea name="job_description" rows="10" cols="80" required></textarea><br>
+        <input type="submit" value="Find Matching Resumes">
+    </form>
+    <br>
+    <a href="{{ url_for('show_resumes') }}">View All Resumes</a>
+</body>
+</html>
