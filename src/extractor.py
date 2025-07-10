@@ -4,7 +4,7 @@ import spacy.cli
 from pdfminer.high_level import extract_text
 
 # -----------------------------------------------------------------------------
-# Ensure the spaCy model is present; download if missing
+# Load spaCy model (download if not present)
 # -----------------------------------------------------------------------------
 def load_spacy_model():
     try:
@@ -12,77 +12,99 @@ def load_spacy_model():
     except OSError:
         print("[DEBUG] spaCy model 'en_core_web_sm' not found. Downloading...")
         spacy.cli.download("en_core_web_sm")
-        print("[DEBUG] Download complete. Loading model...")
         return spacy.load("en_core_web_sm")
 
 nlp = load_spacy_model()
 
+# -----------------------------------------------------------------------------
+# External skill pool (750+ general + technical skills)
+# -----------------------------------------------------------------------------
+with open("data/skillset.txt", "r", encoding="utf-8") as f:
+    SKILL_DATABASE = set([line.strip().lower() for line in f if line.strip()])
 
 # -----------------------------------------------------------------------------
-# PDF Text Extraction
+# Extract raw text from PDF
 # -----------------------------------------------------------------------------
 def extract_text_from_pdf(pdf_path):
-    """
-    Extracts raw text from a PDF using pdfminer.
-    """
     return extract_text(pdf_path)
 
-
 # -----------------------------------------------------------------------------
-# Basic Field Extractors
+# Extract Email
 # -----------------------------------------------------------------------------
 def extract_email(text):
-    email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
-    emails = re.findall(email_pattern, text)
-    return emails[0] if emails else None
+    pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
+    matches = re.findall(pattern, text)
+    return matches[0] if matches else None
 
-
+# -----------------------------------------------------------------------------
+# Extract Phone Number
+# -----------------------------------------------------------------------------
 def extract_phone(text):
-    phone_pattern = r"\+?\d{1,4}[-.\s]?\(?\d{2,4}\)?[-.\s]?\d{3,5}[-.\s]?\d{3,5}"
-    phones = re.findall(phone_pattern, text)
-    return phones[0] if phones else None
+    pattern = r"\+?\d{1,4}[-.\s]?\(?\d{2,4}\)?[-.\s]?\d{3,5}[-.\s]?\d{3,5}"
+    matches = re.findall(pattern, text)
+    return matches[0] if matches else None
 
-
+# -----------------------------------------------------------------------------
+# Extract Name (email + capitalized words logic)
+# -----------------------------------------------------------------------------
 def extract_name(text, email):
     """
-    Heuristic to infer full name based on email username and text context.
+    Final bulletproof name extractor:
+    1. Match full name from email against the resume
+    2. Look for ALL-CAPS lines with 2–3 words (common in headers)
+    3. Use spaCy PERSON NER as fallback (only if it looks reasonable)
     """
-    resume_text = text.replace('\n', ' ')
-    cleaned_text = re.sub(r'[^a-zA-Z\s]', '', resume_text)
-    words = cleaned_text.split()
 
-    # Derive username from email
-    username = email.split('@')[0]
+    # 1. Email-based name match
+    username = email.split('@')[0] if email else ""
     username_clean = re.sub(r'\d+', '', username).lower()
 
-    # Look for consecutive word pairs matching username fragments
-    possible = []
-    for i in range(len(words) - 1):
-        pair = (words[i].strip(), words[i+1].strip())
-        full_lower = (pair[0] + pair[1]).lower()
-        if full_lower in username_clean:
-            possible.append((pair[0].capitalize(), pair[1].capitalize()))
+    if username_clean:
+        name_parts = re.findall(r"[a-zA-Z]{2,}", username_clean)
+        if 1 < len(name_parts) <= 3:
+            guessed_name = " ".join([p.capitalize() for p in name_parts])
+            if guessed_name.lower() in text.lower():
+                return guessed_name
 
-    if possible:
-        return ' '.join(possible[0])
+    # 2. All-caps line detection (common in resumes)
+    lines = text.splitlines()
+    for line in lines:
+        if (
+            line.strip().isupper()
+            and 2 <= len(line.strip().split()) <= 4
+            and not re.search(r'curriculum|vitae|resume|declaration', line, re.IGNORECASE)
+        ):
+            return line.strip().title()
 
-    # Fallback: split cleaned username into name parts
-    split_guess = re.findall(r'[a-zA-Z][^A-Z]*', username_clean)
-    if len(split_guess) >= 2:
-        return ' '.join([part.capitalize() for part in split_guess])
-    return username_clean.capitalize()
+    # 3. Fallback to spaCy NER (with filtering)
+    doc = nlp(text)
+    person_names = [ent.text.strip() for ent in doc.ents if ent.label_ == "PERSON"]
+    for name in person_names:
+        if (
+            2 <= len(name.split()) <= 4
+            and not re.search(r'performance|bug|project|objective|summary', name, re.IGNORECASE)
+        ):
+            return name.title()
+
+    # 4. Ultimate fallback: clean email username
+    return guessed_name if username_clean else "Not Found"
 
 
+
+# -----------------------------------------------------------------------------
+# Extract Skills using external skill database
+# -----------------------------------------------------------------------------
 def extract_skills(text):
-    skills_list = [
-        "Python", "Java", "JavaScript", "C++", "Machine Learning", "AI", "NLP",
-        "Flask", "Django", "SQL", "AWS", "MS Office", "Communication", "Teamwork",
-        "Event Management", "Problem Solving", "Managerial", "Leadership"
-    ]
-    found = [s for s in skills_list if s.lower() in text.lower()]
-    return ", ".join(found) if found else "Not Found"
+    found = set()
+    lower_text = text.lower()
+    for skill in SKILL_DATABASE:
+        if skill in lower_text:
+            found.add(skill.title())
+    return ", ".join(sorted(found)) if found else "Not Found"
 
-
+# -----------------------------------------------------------------------------
+# Extract Education lines
+# -----------------------------------------------------------------------------
 def extract_education(text):
     keywords = [
         "Bachelor", "Master", "PhD", "B.Sc", "M.Sc", "B.Tech", "M.Tech",
@@ -92,38 +114,28 @@ def extract_education(text):
                if any(k.lower() in line.lower() for k in keywords)]
     return ", ".join(matches) if matches else "Not Found"
 
-
+# -----------------------------------------------------------------------------
+# Extract Experience lines around dates
+# -----------------------------------------------------------------------------
 def extract_experience(text):
-    """
-    Extracts lines around date ranges to capture job/experience entries.
-    """
-    experience_entries = []
     lines = text.splitlines()
+    exp_blocks = []
     date_pattern = re.compile(
         r'((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)?\s?\d{4})\s?(–|-|to)\s?(Present|\d{4})',
         re.IGNORECASE
     )
-
     for i, line in enumerate(lines):
         if date_pattern.search(line):
-            snippet = [lines[i].strip()]
-            if i > 0:
-                snippet.insert(0, lines[i-1].strip())
-            if i + 1 < len(lines):
-                snippet.append(lines[i+1].strip())
-            entry = " | ".join([s for s in snippet if s])
-            experience_entries.append(entry)
-
-    return "\n".join(experience_entries) if experience_entries else "Not Found"
-
+            block = [lines[i].strip()]
+            if i > 0: block.insert(0, lines[i-1].strip())
+            if i+1 < len(lines): block.append(lines[i+1].strip())
+            exp_blocks.append(" | ".join(block))
+    return "\n".join(exp_blocks) if exp_blocks else "Not Found"
 
 # -----------------------------------------------------------------------------
-# Full Resume Info Aggregator
+# Run All Extractors
 # -----------------------------------------------------------------------------
 def extract_resume_info(text):
-    """
-    Runs all extractors and returns a dict of parsed fields.
-    """
     email = extract_email(text) or ""
     return {
         "name": extract_name(text, email),
