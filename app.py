@@ -4,6 +4,7 @@ import sqlite3
 from src.extractor import extract_text_from_pdf, extract_resume_info
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+import string
 
 
 app = Flask(__name__)
@@ -77,49 +78,52 @@ def match_resumes():
         all_rows = fetch_all_resumes()
         # each row is tuple: (id, name, email, phone, education, skills, experience)
         resume_texts = []
-        resume_meta  = []
+        resume_meta = []
+
         for row in all_rows:
             resume_id, name, email, phone, education, skills, experience = row
-            # 3. Combine relevant fields into one text blob per resume
             text_blob = " ".join([education or "", skills or "", experience or ""])
             resume_texts.append(text_blob)
             resume_meta.append({
                 'id': resume_id,
                 'name': name,
                 'email': email,
-                'phone': phone
+                'phone': phone,
+                'skills': skills or "Not Available"
             })
 
-        # 4. Vectorize with TF‑IDF
-        #    First document is the job description, the rest are resumes
+        # 3. TF-IDF Vectorization
         corpus = [job_description] + resume_texts
-        vectorizer = TfidfVectorizer()
+        vectorizer = TfidfVectorizer(
+            stop_words='english',
+            ngram_range=(1, 2),
+            lowercase=True,
+            strip_accents='unicode'
+        )
         tfidf_matrix = vectorizer.fit_transform(corpus)
-        # 5. Compute cosine similarity between job desc (0) and each resume (1..N)
         job_vec = tfidf_matrix[0:1]
         resume_vecs = tfidf_matrix[1:]
+
+        # 4. Cosine Similarity
         sims = cosine_similarity(job_vec, resume_vecs)[0]
 
-        # 6. Pair each resume's metadata with its similarity score
+        # 5. Combine metadata and score
         results = []
         for meta, score in zip(resume_meta, sims):
             results.append({
                 **meta,
-                'score': round(float(score), 4)   # four decimals is enough
+                'score': round(float(score), 4)
             })
 
-        # 7. Sort resumes by descending similarity
         results.sort(key=lambda x: x['score'], reverse=True)
         print("[DEBUG] Matching results:", results)
 
-        # 8. Render results template
         return render_template(
             'match_results.html',
             job_description=job_description,
             results=results
         )
 
-    # GET: just show the form
     return render_template('match_form.html')
 
 
