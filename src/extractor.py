@@ -2,6 +2,7 @@ import re
 import spacy
 import spacy.cli
 from pdfminer.high_level import extract_text
+from difflib import SequenceMatcher
 
 # -----------------------------------------------------------------------------
 # Ensure the spaCy model is present; download if missing
@@ -43,34 +44,57 @@ def extract_phone(text):
     return phones[0] if phones else None
 
 
+import re
+from difflib import SequenceMatcher
+
 def extract_name(text, email):
     """
-    Heuristic to infer full name based on email username and text context.
+    Extract full name by matching string phrases in resume to email username.
+    Only considers lines that do not contain the email.
     """
-    resume_text = text.replace('\n', ' ')
-    cleaned_text = re.sub(r'[^a-zA-Z\s]', '', resume_text)
-    words = cleaned_text.split()
 
-    # Derive username from email
+    if not email:
+        return "Not Found"
+
+    # Step 1: Clean email prefix
     username = email.split('@')[0]
     username_clean = re.sub(r'\d+', '', username).lower()
 
-    # Look for consecutive word pairs matching username fragments
-    possible = []
-    for i in range(len(words) - 1):
-        pair = (words[i].strip(), words[i+1].strip())
-        full_lower = (pair[0] + pair[1]).lower()
-        if full_lower in username_clean:
-            possible.append((pair[0].capitalize(), pair[1].capitalize()))
+    # Step 2: Clean resume lines
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    lines = [line for line in lines if '@' not in line and 'email' not in line.lower()]
 
-    if possible:
-        return ' '.join(possible[0])
+    best_name = None
+    best_score = 0.0
 
-    # Fallback: split cleaned username into name parts
-    split_guess = re.findall(r'[a-zA-Z][^A-Z]*', username_clean)
-    if len(split_guess) >= 2:
-        return ' '.join([part.capitalize() for part in split_guess])
-    return username_clean.capitalize()
+    for line in lines:
+        # Extract words (only letters)
+        words = re.findall(r'[A-Za-z]{2,}', line)
+        # Consider 2-word and 3-word combinations
+        for i in range(len(words) - 1):
+            combo_2 = f"{words[i]} {words[i + 1]}"
+            joined_2 = (words[i] + words[i + 1]).lower()
+            score_2 = SequenceMatcher(None, joined_2, username_clean).ratio()
+            if score_2 > best_score:
+                best_score = score_2
+                best_name = combo_2
+
+            if i + 2 < len(words):
+                combo_3 = f"{words[i]} {words[i + 1]} {words[i + 2]}"
+                joined_3 = (words[i] + words[i + 1] + words[i + 2]).lower()
+                score_3 = SequenceMatcher(None, joined_3, username_clean).ratio()
+                if score_3 > best_score:
+                    best_score = score_3
+                    best_name = combo_3
+
+    if best_name and best_score > 0.5:
+        return best_name.title()
+
+    # Fallback: clean guess from email
+    email_parts = re.findall(r"[a-zA-Z]{2,}", username_clean)
+    return " ".join([p.capitalize() for p in email_parts]) if email_parts else "Not Found"
+
+
 
 
 def extract_skills(text):
