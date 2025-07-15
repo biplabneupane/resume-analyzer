@@ -14,7 +14,9 @@
       <th>Name</th>
       <th>Email</th>
       <th>Phone</th>
-      <th>Skills</th>  <!-- ✅ Added column -->
+      <th>Years of Exp</th>
+      <th>Skills</th>
+
     </tr>
     {% for r in results %}
     <tr>
@@ -22,7 +24,8 @@
       <td>{{ r.name }}</td>
       <td>{{ r.email }}</td>
       <td>{{ r.phone }}</td>
-      <td>{{ r.skills }}</td>  <!-- ✅ Show skills -->
+      <td>{{ r.get('years_experience', 'N/A') }}</td>
+      <td>{{ r.skills }}</td>
     </tr>
     {% endfor %}
   </table>
