@@ -1,11 +1,17 @@
 from flask import Flask, render_template, request, redirect, url_for
 import os
 import sqlite3
-from src.extractor import extract_text_from_pdf, extract_resume_info
+from src.extractor import (
+    extract_text_from_pdf,
+    extract_name,
+    extract_email,
+    extract_phone,
+    extract_skills,
+    extract_education_experience
+)
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import string
-
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
@@ -56,7 +62,21 @@ def upload_resume():
         file.save(file_path)
 
         resume_text = extract_text_from_pdf(file_path)
-        extracted_info = extract_resume_info(resume_text)
+        
+        # New parsing logic using modular functions
+        email = extract_email(resume_text)
+        edu_exp = extract_education_experience(resume_text)
+        
+        extracted_info = {
+            "name": extract_name(resume_text, email),
+            "email": email,
+            "phone": extract_phone(resume_text),
+            "education": edu_exp["education"],
+            "skills": extract_skills(resume_text),
+            "experience": edu_exp["experience"]
+        }
+
+
         insert_into_db(extracted_info)
 
         return render_template("results.html", resume_text=resume_text, extracted_info=extracted_info)
@@ -66,17 +86,13 @@ def show_resumes():
     all_resumes = fetch_all_resumes()
     return render_template("resumes.html", resumes=all_resumes)
 
-
 @app.route('/match', methods=['GET', 'POST'])
 def match_resumes():
     if request.method == 'POST':
-        # 1. Retrieve job description from form
         job_description = request.form['job_description']
         print("[DEBUG] Job description received:", job_description)
 
-        # 2. Fetch all resumes from DB
         all_rows = fetch_all_resumes()
-        # each row is tuple: (id, name, email, phone, education, skills, experience)
         resume_texts = []
         resume_meta = []
 
@@ -92,7 +108,6 @@ def match_resumes():
                 'skills': skills or "Not Available"
             })
 
-        # 3. TF-IDF Vectorization
         corpus = [job_description] + resume_texts
         vectorizer = TfidfVectorizer(
             stop_words='english',
@@ -104,10 +119,8 @@ def match_resumes():
         job_vec = tfidf_matrix[0:1]
         resume_vecs = tfidf_matrix[1:]
 
-        # 4. Cosine Similarity
         sims = cosine_similarity(job_vec, resume_vecs)[0]
 
-        # 5. Combine metadata and score
         results = []
         for meta, score in zip(resume_meta, sims):
             results.append({
@@ -125,8 +138,6 @@ def match_resumes():
         )
 
     return render_template('match_form.html')
-
-
 
 if __name__ == "__main__":
     app.run(debug=True)
