@@ -133,43 +133,77 @@ def extract_skills(text):
 
 
 
-def extract_education(text):
-    keywords = [
-        "Bachelor", "Master", "PhD", "B.Sc", "M.Sc", "B.Tech", "M.Tech",
-        "Engineering", "Management", "University", "College", "NEB"
-    ]
-    matches = [line.strip() for line in text.splitlines()
-               if any(k.lower() in line.lower() for k in keywords)]
-    return ", ".join(matches) if matches else "Not Found"
+import re
 
+def extract_education_experience(text):
+    """
+    Extracts education and experience sections using section headers.
+    Falls back to pattern-based methods if headers are missing.
+    """
+    sections = {
+        "education": [],
+        "experience": []
+    }
 
-def extract_experience(text):
-    """
-    Extracts lines around date ranges to capture job/experience entries.
-    """
-    experience_entries = []
-    lines = text.splitlines()
-    date_pattern = re.compile(
-        r'((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)?\s?\d{4})\s?(–|-|to)\s?(Present|\d{4})',
+    headers = {
+        "education": re.compile(r"^\s*education\s*$", re.IGNORECASE),
+        "experience": re.compile(r"^\s*experience\s*$", re.IGNORECASE),
+    }
+
+    stop_headers = re.compile(
+        r"^\s*(skills|projects|certificates|contact|personal\s+info|objective|summary|languages|training|references)\s*$",
         re.IGNORECASE
     )
 
-    for i, line in enumerate(lines):
-        if date_pattern.search(line):
-            snippet = [lines[i].strip()]
-            if i > 0:
-                snippet.insert(0, lines[i-1].strip())
-            if i + 1 < len(lines):
-                snippet.append(lines[i+1].strip())
-            entry = " | ".join([s for s in snippet if s])
-            experience_entries.append(entry)
+    current = None
+    lines = text.splitlines()
 
-    return "\n".join(experience_entries) if experience_entries else "Not Found"
+    for line in lines:
+        clean = line.strip()
+        if not clean:
+            continue
+
+        if headers["education"].match(clean):
+            current = "education"
+            continue
+        elif headers["experience"].match(clean):
+            current = "experience"
+            continue
+        elif stop_headers.match(clean):
+            current = None
+            continue
+
+        if current:
+            sections[current].append(clean)
+
+    # Fallback: use keyword/date-based heuristics if no header content found
+    if not sections["education"]:
+        edu_keywords = ["Bachelor", "Master", "PhD", "University", "College", "NEB", "BBS", "MBS", "BBA", "MBA"]
+        sections["education"] = [l.strip() for l in lines if any(k.lower() in l.lower() for k in edu_keywords)]
+
+    if not sections["experience"]:
+        date_pattern = re.compile(
+            r'((Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)?\.?\s?\d{4})\s?(–|-|to)\s?(Present|\d{4})',
+            re.IGNORECASE
+        )
+        for i, line in enumerate(lines):
+            if date_pattern.search(line):
+                snippet = [line.strip()]
+                if i > 0:
+                    snippet.insert(0, lines[i-1].strip())
+                if i + 1 < len(lines):
+                    snippet.append(lines[i+1].strip())
+                entry = " | ".join([s for s in snippet if s])
+                sections["experience"].append(entry)
+
+    return {
+        "education": "\n".join(sections["education"]) if sections["education"] else "Not Found",
+        "experience": "\n".join(sections["experience"]) if sections["experience"] else "Not Found"
+    }
 
 
 
 
-import re
 from datetime import datetime
 from dateutil import parser as dparser
 
