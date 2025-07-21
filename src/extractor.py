@@ -1,3 +1,4 @@
+import os
 import re
 import spacy
 import spacy.cli
@@ -44,7 +45,6 @@ def extract_phone(text):
     return phones[0] if phones else None
 
 
-import re
 from difflib import SequenceMatcher
 
 def extract_name(text, email):
@@ -96,15 +96,41 @@ def extract_name(text, email):
 
 
 
-
 def extract_skills(text):
-    skills_list = [
-        "Python", "Java", "JavaScript", "C++", "Machine Learning", "AI", "NLP",
-        "Flask", "Django", "SQL", "AWS", "MS Office", "Communication", "Teamwork",
-        "Event Management", "Problem Solving", "Managerial", "Leadership"
-    ]
-    found = [s for s in skills_list if s.lower() in text.lower()]
-    return ", ".join(found) if found else "Not Found"
+    """
+    Extracts skills from the resume's 'Skills' section only.
+    Matches only against known valid skills in data/skillset.txt.
+    """
+
+    skill_file_path = os.path.join("data", "skillset.txt")
+
+    # Load the known curated skill list
+    known_skills = set()
+    if os.path.exists(skill_file_path):
+        with open(skill_file_path, "r", encoding="utf-8") as f:
+            known_skills = {line.strip().lower() for line in f if line.strip()}
+
+    # Step 1: Try to isolate the 'Skills' section
+    skills_section = ""
+    skill_section_match = re.search(r"(Skills|Technical Skills|Skill Set)[^\n]*\n([\s\S]{0,1000})", text, re.IGNORECASE)
+    if skill_section_match:
+        skills_section = skill_section_match.group(2)
+
+    # Fallback to whole text if section not found
+    target_text = skills_section if skills_section else text
+
+    # Step 2: Tokenize and match against known skills
+    words = re.findall(r"[A-Za-z][A-Za-z0-9+.#\-]{1,}", target_text)
+    found_skills = set()
+
+    for word in words:
+        word_clean = word.lower()
+        if word_clean in known_skills:
+            found_skills.add(word.strip())
+
+    return ", ".join(sorted(found_skills, key=str.lower)) if found_skills else "Not Found"
+
+
 
 
 def extract_education(text):
@@ -141,13 +167,63 @@ def extract_experience(text):
     return "\n".join(experience_entries) if experience_entries else "Not Found"
 
 
+
+
+import re
+from datetime import datetime
+from dateutil import parser as dparser
+
+def calculate_years_of_experience(text):
+    """
+    Extracts job duration ranges and calculates total experience in years.
+    Works with formats like:
+    - Jan 2018 - Feb 2020
+    - 2015 - Present
+    - Feb, 2021 to Oct 2023
+    """
+
+    # Normalize common separators
+    text = text.replace("–", "-").replace("—", "-").replace(" to ", " - ")
+
+    # Look for potential ranges
+    date_range_pattern = re.compile(
+        r"(?P<start>(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)?\.?\s?\d{4})\s*[-]\s*(?P<end>(Present|\d{4}))",
+        re.IGNORECASE
+    )
+
+    total_months = 0
+    now = datetime.today()
+
+    for match in date_range_pattern.finditer(text):
+        raw_start = match.group("start").strip()
+        raw_end = match.group("end").strip()
+
+        try:
+            start = dparser.parse(raw_start, fuzzy=True, default=datetime(2000, 1, 1))
+        except:
+            continue
+
+        try:
+            end = now if "present" in raw_end.lower() else dparser.parse(raw_end, fuzzy=True)
+        except:
+            continue
+
+        months = (end.year - start.year) * 12 + (end.month - start.month)
+        total_months += max(0, months)
+
+    # Convert to years
+    total_years = round(total_months / 12, 1)
+    return total_years if total_years > 0 else "N/A"
+
+
+
+
+
+
 # -----------------------------------------------------------------------------
 # Full Resume Info Aggregator
 # -----------------------------------------------------------------------------
 def extract_resume_info(text):
-    """
-    Runs all extractors and returns a dict of parsed fields.
-    """
     email = extract_email(text) or ""
     return {
         "name": extract_name(text, email),
@@ -155,5 +231,6 @@ def extract_resume_info(text):
         "phone": extract_phone(text) or "",
         "education": extract_education(text),
         "skills": extract_skills(text),
-        "experience": extract_experience(text)
+        "experience": extract_experience(text),
+        "years_experience": calculate_years_of_experience(text)
     }
